@@ -20,7 +20,14 @@ _V2_PATTERN = re.compile(
         (?P<path>[^\x00]+)\x00
     |
         (?P<renamed>2)[ ]
-        (?P<rxy>[MTADRCU.]{2})[ ]
+        (?P<rxy>[MTADRCU.]{2})[ ]  # re module doesn't allow reusing group names
+                                   # hence why we keep creating new yet very
+                                   # similar group names.
+                                   #
+                                   # similary we're using ordinary/renamed/etc
+                                   # groups as it's easier to reason about
+                                   # than having a (?P<flag>) and then use
+                                   # positive lookbehind in every alternative
         (?:N\.\.\.|S[C\.][M\.][U\.])[ ]
         [0-7]{6}[ ]
         [0-7]{6}[ ]
