@@ -1,13 +1,20 @@
 [project]
 name = "git-status-tree"
 version = "0.1.0"
-description = "Add your description here"
+description = "git status -s, but as a tree"
 authors = [
-    { name = "Alexis Daboville", email = "alexis.daboville@gmail.com" }
+    { name = "Alexis Daboville" }
 ]
-dependencies = []
+dependencies = [
+    "anytree>=2.12.1",
+    "gitpython>=3.1.43",
+    "colorama>=0.4.6",
+]
 readme = "README.md"
 requires-python = ">= 3.8"
+
+[project.scripts]
+"git-status-tree" = "git_status_tree:cli"
 
 [build-system]
 requires = ["hatchling"]
