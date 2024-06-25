@@ -1,4 +1,5 @@
 import re
+import sys
 
 import git
 from anytree import Node, RenderTree
@@ -57,7 +58,7 @@ def cli():
     init()
 
     repo = git.Repo(search_parent_directories=True)
-    v2statuses = repo.git.status("--porcelain=v2", "-z")
+    v2statuses = repo.git.status("--porcelain=v2", "-z", *sys.argv[1:])
 
     path_to_status = {}
     path_from_old_path = {}
@@ -84,7 +85,6 @@ def cli():
             path_to_status[untracked_path] = "??"
 
         elif match.group("ignored"):
-            # shouldn't happen as we don't support `--ignored`
             ignored_path = match.group("ignored_path")
             path_to_status[ignored_path] = "!!"
 
