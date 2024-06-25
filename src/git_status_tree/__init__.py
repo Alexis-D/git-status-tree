@@ -61,7 +61,7 @@ _V2_PATTERN = re.compile(
 )
 
 
-def parse_v2_statuses(v2statuses):
+def _parse_v2_statuses(v2statuses):
     path_to_status = {}
     path_from_old_path = {}
     for match in re.finditer(_V2_PATTERN, v2statuses):
@@ -101,59 +101,68 @@ class Tree:
         self._roots = []
         self._folders = {}
 
-    def add(self, path, status=None, old_path=None, blob=True):
+    def add(self, path, *, status, old_path=None):
+        return self._add(path, status=status, old_path=old_path, is_blob=True)
+
+    def _add(self, path, *, is_blob, status=None, old_path=None):
         # the somewhat weird handling is ultimately down to git not normally
         # knowing about directories, but it kinda does when doing things like
         # git status --ignored where it *will* return folders-as-blobs, those
         # end up with a `/` so we rely on this fact to properly handle those
         # folders and give them status if relevant unlike 'regular' folders
         is_root = path.count("/") == 0 or (path.count("/") == 1 and path.endswith("/"))
-        if is_root and blob:
-            node = Node(path, status=status, old_path=old_path)
+        if is_root and is_blob:
+            node = Tree._node(path, status=status, old_path=old_path)
             self._roots.append(node)
 
-        elif path.count("/") == 0:
+        elif is_root:
             if path in self._folders:
                 return self._folders[path]
 
-            node = Node(path, status=None, old_path=None)
+            node = Tree._node(path)
             self._roots.append(node)
             self._folders[path] = node
             return node
 
-        elif blob:
+        elif is_blob:
+            parent, base = path.rstrip("/").rsplit("/", maxsplit=1)
+
             if path.endswith("/"):
-                parent, base, _ = path.rsplit("/", maxsplit=2)
                 base += "/"
-            else:
-                parent, base = path.rsplit("/", maxsplit=1)
-            parent_node = self.add(parent, blob=False)
-            Node(base, parent=parent_node, status=status, old_path=old_path)
+
+            parent_node = self._add(parent, is_blob=False)
+            Tree._node(base, parent=parent_node, status=status, old_path=old_path)
 
         else:
             if path in self._folders:
                 return self._folders[path]
 
             parent, base = path.rsplit("/", maxsplit=1)
-            parent_node = self.add(parent, blob=False)
-            node = Node(base, parent=parent_node, status=None, old_path=None)
+            parent_node = self._add(parent, is_blob=False)
+            node = Tree._node(base, parent=parent_node)
             self._folders[path] = node
             return node
 
     def show(self):
         for root in self._roots:
             for pre, _, node in RenderTree(root):
-                if node.status is None:  # this is a directory
+                if node.status is None:
+                    # this is a fake directory (i.e. a non-ignored one)
                     print(f"{pre}{node.name}/")
                 else:
                     renamed = (
                         f"{node.old_path} -> " if node.old_path is not None else ""
                     )
-                    status = self._colored_status(node.status)
+                    status = Tree._colored_status(node.status)
 
                     print(f"{pre}{status} {renamed}{node.name}")
 
-    def _colored_status(self, status):
+    @staticmethod
+    def _node(base, *, parent=None, status=None, old_path=None):
+        return Node(base, parent=parent, status=status, old_path=old_path)
+
+    @staticmethod
+    def _colored_status(status):
         x, y = status
 
         # see git-status(1) for those special cases
@@ -183,7 +192,7 @@ def cli():
 
     repo = git.Repo(search_parent_directories=True)
     v2statuses = repo.git.status("--porcelain=v2", "-z", *sys.argv[1:])
-    path_to_status, path_from_old_path = parse_v2_statuses(v2statuses)
+    path_to_status, path_from_old_path = _parse_v2_statuses(v2statuses)
 
     # sort nested path first so they end up being printed first
     sorted_statuses = dict(
@@ -195,6 +204,6 @@ def cli():
     tree = Tree()
 
     for path, status in sorted_statuses.items():
-        tree.add(path, status, old_path=path_from_old_path.get(path, None))
+        tree.add(path, status=status, old_path=path_from_old_path.get(path, None))
 
     tree.show()
