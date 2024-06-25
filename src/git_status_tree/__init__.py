@@ -107,20 +107,24 @@ def cli():
         parts = path.split("/")
         for i, part in enumerate(parts[:-1]):
             pre = "/".join(parts[: i + 1])
+            dir_handling = i == len(parts) - 2 and path.endswith('/')
+            dir_suffix = '/' if dir_handling else ''
 
             if pre in folder_nodes:
                 curr = folder_nodes[pre]
 
             elif i == 0:
-                curr = Node(pre, status=None)
+                curr = Node(pre + dir_suffix, status=None if not dir_handling else
+                            status)
                 folder_nodes[pre] = curr
                 root_nodes.append(curr)
 
             else:
-                curr = Node(part, parent=curr, status=None)
+                curr = Node(part + dir_suffix, parent=curr, status=None if not dir_handling else status)
                 folder_nodes[pre] = curr
 
-        _has_side_effects = Node(parts[-1], parent=curr, status=status)
+        if not path.endswith('/'):
+            _has_side_effects = Node(parts[-1], parent=curr, status=status)
 
     for root in root_nodes:
         for pre, _, node in RenderTree(root):
