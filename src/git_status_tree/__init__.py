@@ -89,6 +89,91 @@ def parse_v2_statuses(v2statuses):
     return path_to_status, path_from_old_path
 
 
+class Tree:
+    def __init__(self):
+        self._roots = []
+        self._folders = {}
+
+    def add(self, path, status=None, old_path=None, blob=True):
+        # the somewhat weird handling is ultimately down to git not normally
+        # knowing about directories, but it kinda does when doing things like
+        # git status --ignored where it *will* return folders-as-blobs, those
+        # end up with a `/` so we rely on this fact to properly handle those
+        # folders and give them status if relevant unlike 'regular' folders
+        is_root = path.count("/") == 0 or (path.count("/") == 1 and path.endswith("/"))
+        if is_root and blob:
+            node = Node(path, status=status, old_path=old_path)
+            self._roots.append(node)
+
+        elif path.count("/") == 0:
+            if path in self._folders:
+                return self._folders[path]
+
+            node = Node(path, status=None, old_path=None)
+            self._roots.append(node)
+            self._folders[path] = node
+            return node
+
+        elif blob:
+            if path.endswith("/"):
+                parent, base, _ = path.rsplit("/", maxsplit=2)
+                base += "/"
+            else:
+                parent, base = path.rsplit("/", maxsplit=1)
+            parent_node = self.add(parent, blob=False)
+            Node(base, parent=parent_node, status=status, old_path=old_path)
+
+        else:
+            if path in self._folders:
+                return self._folders[path]
+
+            parent, base = path.rsplit("/", maxsplit=1)
+            parent_node = self.add(parent, blob=False)
+            node = Node(base, parent=parent_node, status=None, old_path=None)
+            self._folders[path] = node
+            return node
+
+    def show(self):
+        for root in self._roots:
+            for pre, _, node in RenderTree(root):
+                if node.status is None:  # this is a directory
+                    print(f"{pre}{node.name}/")
+                else:
+                    renamed = (
+                        f"{node.old_path} -> " if node.old_path is not None else ""
+                    )
+                    status = self._colored_status(node.status)
+
+                    print(f"{pre}{status} {renamed}{node.name}")
+
+    def _colored_status(self, status):
+        x, y = status
+
+        # see git-status(1) for those special cases
+        if x in "?!" or status in [
+            "DD",
+            "AU",
+            "UD",
+            "UA",
+            "DU",
+            "AA",
+            "UU",
+        ]:
+            x = f"{Fore.RED}{x}"
+            y = f"{y}{Style.RESET_ALL}"
+
+        else:
+            if x != ".":
+                x = f"{Fore.GREEN}{x}{Style.RESET_ALL}"
+
+            if y != ".":
+                y = f"{Fore.RED}{y}{Style.RESET_ALL}"
+            else:
+                y = f"{Style.RESET_ALL}{y}"
+
+        return x + y
+
+
 def cli():
     # if stdout is piped, disable colors
     init()
@@ -103,78 +188,10 @@ def cli():
             path_to_status.items(), key=lambda item: (-len(item[0].split("/")), item[0])
         )
     )
-    root_nodes = []
-    folder_nodes = {}
+
+    tree = Tree()
 
     for path, status in sorted_statuses.items():
-        # if we've got a file in the root...
-        if "/" not in path:
-            root_nodes.append(Node(path, status=path_to_status[path]))
-            continue
+        tree.add(path, status, old_path=path_from_old_path.get(path, None))
 
-        parts = path.split("/")
-        for i, part in enumerate(parts[:-1]):
-            pre = "/".join(parts[: i + 1])
-
-            # when using --ignored, git status actually return status for
-            # directories rather than just blobs, therefore we need some
-            # special handling
-            dir_handling = i == len(parts) - 2 and path.endswith("/")
-            dir_suffix = "/" if dir_handling else ""
-
-            if pre in folder_nodes:
-                curr = folder_nodes[pre]
-
-            elif i == 0:
-                curr = Node(
-                    pre + dir_suffix, status=None if not dir_handling else status
-                )
-                folder_nodes[pre] = curr
-                root_nodes.append(curr)
-
-            else:
-                curr = Node(
-                    part + dir_suffix,
-                    parent=curr,
-                    status=None if not dir_handling else status,
-                )
-                folder_nodes[pre] = curr
-
-        if not path.endswith("/"):
-            # adds the actual blob to our tree
-            _has_side_effects = Node(parts[-1], parent=curr, status=status)
-
-    for root in root_nodes:
-        for pre, _, node in RenderTree(root):
-            if node.status is None:  # this is a directory
-                print(f"{pre}{node.name}/")
-            else:
-                renamed = (
-                    f"{path_from_old_path[node.name]} -> "
-                    if node.name in path_from_old_path
-                    else ""
-                )
-                x, y = node.status
-
-                # see git-status(1) for those special cases
-                if x in "?!" or node.status in [
-                    "DD",
-                    "AU",
-                    "UD",
-                    "UA",
-                    "DU",
-                    "AA",
-                    "UU",
-                ]:
-                    x = f"{Fore.RED}{x}"
-                    y = f"{y}{Style.RESET_ALL}"
-
-                else:
-                    if x != ".":
-                        x = f"{Fore.GREEN}{x}"
-                    if y != ".":
-                        y = f"{Fore.RED}{y}"
-                    else:
-                        y = f"{Style.RESET_ALL}{y}"
-
-                print(f"{pre}{x}{y}{Style.RESET_ALL} {renamed}{node.name}")
+    tree.show()
