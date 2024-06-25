@@ -2,6 +2,9 @@
 
 `git-status-tree` is to `git status -s` what `tree` is to `ls`.
 
+Not meant to be used (no tests, no idea if it works with submodules, etc), turns out `git status` is a lot more
+complicated than you'd think at first.
+
 Output is something like this (but with colors!):
 
 ```
