@@ -159,17 +159,13 @@ class Tree:
             "AA",
             "UU",
         ]:
-            x = f"{Fore.RED}{x}"
-            y = f"{y}{Style.RESET_ALL}"
+            return f"{Fore.RED}{x}{y}{Style.RESET_ALL}"
 
-        else:
-            if x != ".":
-                x = f"{Fore.GREEN}{x}{Style.RESET_ALL}"
+        if x != ".":
+            x = f"{Fore.GREEN}{x}{Style.RESET_ALL}"
 
-            if y != ".":
-                y = f"{Fore.RED}{y}{Style.RESET_ALL}"
-            else:
-                y = f"{Style.RESET_ALL}{y}"
+        if y != ".":
+            y = f"{Fore.RED}{y}{Style.RESET_ALL}"
 
         return x + y
 

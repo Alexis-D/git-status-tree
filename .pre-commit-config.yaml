@@ -1,0 +1,19 @@
+repos:
+- repo: local
+  hooks:
+  - id: lint
+    name: rye lint --fix
+    entry: rye lint --fix
+    language: system
+    types: [python]
+  - id: fmt
+    name: rye fmt
+    entry: rye fmt
+    language: system
+    types: [python]
+  - id: lock
+    name: rye lock
+    entry: rye lock
+    language: system
+    pass_filenames: false
+    files: ^pyproject.toml$

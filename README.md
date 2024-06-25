@@ -14,3 +14,5 @@ MM README.md
 
 `git status -s` would output ` ` instead of `.` but that behavior would get really confusing when statuses aren't all
 aligned.
+
+![screenshot of git-status-tree](./screenshot.png)

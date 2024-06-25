@@ -1,0 +1,13 @@
+name: Setup env
+description: Setup python, poetry and install deps
+
+runs:
+  using: composite
+  steps:
+    - name: Install the latest version of rye
+      uses: eifinger/setup-rye@v3
+      with:
+        enable-cache: true
+    - name: Rye sync
+      run: rye sync --no-lock
+      shell: bash
