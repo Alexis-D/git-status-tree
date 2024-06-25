@@ -146,7 +146,7 @@ def cli():
 
     for root in root_nodes:
         for pre, _, node in RenderTree(root):
-            if node.status is None: # this is a directory
+            if node.status is None:  # this is a directory
                 print(f"{pre}{node.name}/")
             else:
                 renamed = (
