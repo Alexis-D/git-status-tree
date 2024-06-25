@@ -8,54 +8,42 @@ from colorama import Fore, Style, init
 _V2_PATTERN = re.compile(
     r"""
     # see git-status(1) for v2 porcelain format
-    (?:
-        (?P<ordinary>1)[ ]
-        (?P<xy>[MTADRCU.]{2})[ ]
-        (?:N\.\.\.|S[C\.][M\.][U\.])[ ]
-        [0-7]{6}[ ]
-        [0-7]{6}[ ]
-        [0-7]{6}[ ]
-        [0-9a-f]+[ ]
-        [0-9a-f]+[ ]
-        (?P<path>[^\x00]+)\x00
-    |
-        (?P<renamed>2)[ ]
-        (?P<rxy>[MTADRCU.]{2})[ ]  # re module doesn't allow reusing group names
-                                   # hence why we keep creating new yet very
-                                   # similar group names.
-                                   #
-                                   # similary we're using ordinary/renamed/etc
-                                   # groups as it's easier to reason about
-                                   # than having a (?P<flag>) and then use
-                                   # positive lookbehind in every alternative
-        (?:N\.\.\.|S[C\.][M\.][U\.])[ ]
-        [0-7]{6}[ ]
-        [0-7]{6}[ ]
-        [0-7]{6}[ ]
-        [0-9a-f]+[ ]
-        [0-9a-f]+[ ]
-        [RC][0-9]{1,3}[ ]
-        (?P<new_path>[^\x00]+)\x00
-        (?P<old_path>[^\x00]+)\x00
-    |
-        (?P<unmerged>u)[ ]
-        (?P<uxy>[MTADRCU.]{2})[ ]
-        (?:N\.\.\.|S[C\.][M\.][U\.])[ ]
-        [0-7]{6}[ ]
-        [0-7]{6}[ ]
-        [0-7]{6}[ ]
-        [0-7]{6}[ ]
-        [0-9a-f]+[ ]
-        [0-9a-f]+[ ]
-        [0-9a-f]+[ ]
-        (?P<unmerged_path>[^\x00]+)\x00
-    |
-        (?P<untracked>[?])[ ]
-        (?P<untracked_path>[^\x00]+)\x00
-    |
-        (?P<ignored>!)[ ]
-        (?P<ignored_path>[^\x00]+)\x00
-    )
+
+    (?P<ordinary>1)[ ]
+    (?P<xy>[MTADRCU.]{2})[ ]
+    (?:N\.{3}|S[C.][M.][U.])[ ]
+    (?:[0-7]{6}[ ]){3}
+    (?:[0-9a-f]+[ ]){2}
+    (?P<path>[^\x00]+)\x00
+|
+    (?P<renamed>2)[ ]
+    (?P<rxy>[MTADRCU.]{2})[ ]  # re module doesn't allow reusing group names
+                               # hence why we keep creating new yet very
+                               # similar group names.
+                               #
+                               # similary we're using ordinary/renamed/etc
+                               # groups as it's easier to reason about
+                               # than having a (?P<flag>) and then use
+                               # positive lookbehind in every alternative
+    (?:N\.{3}|S[C.][M.][U.])[ ]
+    (?:[0-7]{6}[ ]){3}
+    (?:[0-9a-f]+[ ]){2}
+    [RC][0-9]{1,3}[ ]
+    (?P<new_path>[^\x00]+)\x00
+    (?P<old_path>[^\x00]+)\x00
+|
+    (?P<unmerged>u)[ ]
+    (?P<uxy>[MTADRCU.]{2})[ ]
+    (?:N\.{3}|S[C.][M.][U.])[ ]
+    (?:[0-7]{6}[ ]){4}
+    (?:[0-9a-f]+[ ]){3}
+    (?P<unmerged_path>[^\x00]+)\x00
+|
+    (?P<untracked>[?])[ ]
+    (?P<untracked_path>[^\x00]+)\x00
+|
+    (?P<ignored>!)[ ]
+    (?P<ignored_path>[^\x00]+)\x00
 """,
     re.VERBOSE,
 )
