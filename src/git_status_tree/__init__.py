@@ -1,8 +1,8 @@
-from colorama import init, Fore, Style
 import re
-import collections
+
 import git
 from anytree import Node, RenderTree
+from colorama import Fore, Style, init
 
 _V2_PATTERN = re.compile(
     r"""
