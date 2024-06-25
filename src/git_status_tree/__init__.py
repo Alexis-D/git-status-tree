@@ -7,6 +7,7 @@ from colorama import Fore, Style, init
 
 _V2_PATTERN = re.compile(
     r"""
+    # see git-status(1) for v2 porcelain format
     (?:
         (?P<ordinary>1)[ ]
         (?P<xy>[MTADRCU.]{2})[ ]
@@ -17,7 +18,7 @@ _V2_PATTERN = re.compile(
         [0-9a-f]+[ ]
         [0-9a-f]+[ ]
         (?P<path>[^\x00]+)\x00
-        |
+    |
         (?P<renamed>2)[ ]
         (?P<rxy>[MTADRCU.]{2})[ ]
         (?:N\.\.\.|S[C\.][M\.][U\.])[ ]
@@ -29,7 +30,7 @@ _V2_PATTERN = re.compile(
         [RC][0-9]{1,3}[ ]
         (?P<new_path>[^\x00]+)\x00
         (?P<old_path>[^\x00]+)\x00
-        |
+    |
         (?P<unmerged>u)[ ]
         (?P<uxy>[MTADRCU.]{2})[ ]
         (?:N\.\.\.|S[C\.][M\.][U\.])[ ]
@@ -41,10 +42,10 @@ _V2_PATTERN = re.compile(
         [0-9a-f]+[ ]
         [0-9a-f]+[ ]
         (?P<unmerged_path>[^\x00]+)\x00
-        |
+    |
         (?P<untracked>[?])[ ]
         (?P<untracked_path>[^\x00]+)\x00
-        |
+    |
         (?P<ignored>!)[ ]
         (?P<ignored_path>[^\x00]+)\x00
     )
@@ -53,13 +54,7 @@ _V2_PATTERN = re.compile(
 )
 
 
-def cli():
-    # if stdout is piped, disable colors
-    init()
-
-    repo = git.Repo(search_parent_directories=True)
-    v2statuses = repo.git.status("--porcelain=v2", "-z", *sys.argv[1:])
-
+def parse_v2_statuses(v2statuses):
     path_to_status = {}
     path_from_old_path = {}
     for match in re.finditer(_V2_PATTERN, v2statuses):
@@ -91,6 +86,18 @@ def cli():
         else:
             raise
 
+    return path_to_status, path_from_old_path
+
+
+def cli():
+    # if stdout is piped, disable colors
+    init()
+
+    repo = git.Repo(search_parent_directories=True)
+    v2statuses = repo.git.status("--porcelain=v2", "-z", *sys.argv[1:])
+    path_to_status, path_from_old_path = parse_v2_statuses(v2statuses)
+
+    # sort nested path first so they end up being printed first
     sorted_statuses = dict(
         sorted(
             path_to_status.items(), key=lambda item: (-len(item[0].split("/")), item[0])
@@ -100,6 +107,7 @@ def cli():
     folder_nodes = {}
 
     for path, status in sorted_statuses.items():
+        # if we've got a file in the root...
         if "/" not in path:
             root_nodes.append(Node(path, status=path_to_status[path]))
             continue
@@ -107,6 +115,10 @@ def cli():
         parts = path.split("/")
         for i, part in enumerate(parts[:-1]):
             pre = "/".join(parts[: i + 1])
+
+            # when using --ignored, git status actually return status for
+            # directories rather than just blobs, therefore we need some
+            # special handling
             dir_handling = i == len(parts) - 2 and path.endswith("/")
             dir_suffix = "/" if dir_handling else ""
 
@@ -129,11 +141,12 @@ def cli():
                 folder_nodes[pre] = curr
 
         if not path.endswith("/"):
+            # adds the actual blob to our tree
             _has_side_effects = Node(parts[-1], parent=curr, status=status)
 
     for root in root_nodes:
         for pre, _, node in RenderTree(root):
-            if node.status is None:
+            if node.status is None: # this is a directory
                 print(f"{pre}{node.name}/")
             else:
                 renamed = (
@@ -143,6 +156,7 @@ def cli():
                 )
                 x, y = node.status
 
+                # see git-status(1) for those special cases
                 if x in "?!" or node.status in [
                     "DD",
                     "AU",
