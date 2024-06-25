@@ -3,7 +3,9 @@ import re
 import collections
 import git
 from anytree import Node, RenderTree
-_V2_PATTERN = re.compile(r'''
+
+_V2_PATTERN = re.compile(
+    r"""
     (?:
         (?P<ordinary>1)[ ]
         (?P<xy>[MTADRCU.]{2})[ ]
@@ -45,7 +47,9 @@ _V2_PATTERN = re.compile(r'''
         (?P<ignored>!)[ ]
         (?P<ignored_path>[^\x00]+)\x00
     )
-''', re.VERBOSE)
+""",
+    re.VERBOSE,
+)
 
 
 def cli():
@@ -53,53 +57,56 @@ def cli():
     init()
 
     repo = git.Repo(search_parent_directories=True)
-    v2statuses = repo.git.status('--porcelain=v2', '-z')
+    v2statuses = repo.git.status("--porcelain=v2", "-z")
 
     path_to_status = {}
     path_from_old_path = {}
     for match in re.finditer(_V2_PATTERN, v2statuses):
-        if match.group('ordinary'):
-            xy = match.group('xy')
-            path = match.group('path')
+        if match.group("ordinary"):
+            xy = match.group("xy")
+            path = match.group("path")
             path_to_status[path] = xy
 
-        elif match.group('renamed'):
-            xy = match.group('rxy')
-            new_path = match.group('new_path')
-            old_path = match.group('old_path')
+        elif match.group("renamed"):
+            xy = match.group("rxy")
+            new_path = match.group("new_path")
+            old_path = match.group("old_path")
             path_to_status[new_path] = xy
             path_from_old_path[new_path] = old_path
 
-        elif match.group('unmerged'):
-            xy = match.group('uxy')
-            unmerged_path = match.group('unmerged_path')
+        elif match.group("unmerged"):
+            xy = match.group("uxy")
+            unmerged_path = match.group("unmerged_path")
             path_to_status[unmerged_path] = xy
 
-        elif match.group('untracked'):
-            untracked_path = match.group('untracked_path')
-            path_to_status[untracked_path] = '??'
+        elif match.group("untracked"):
+            untracked_path = match.group("untracked_path")
+            path_to_status[untracked_path] = "??"
 
-        elif match.group('ignored'):
+        elif match.group("ignored"):
             # shouldn't happen as we don't support `--ignored`
-            ignored_path = match.group('ignored_path')
-            path_to_status[ignored_path] = '!!'
+            ignored_path = match.group("ignored_path")
+            path_to_status[ignored_path] = "!!"
 
         else:
             raise
 
-    sorted_statuses = dict(sorted(path_to_status.items(), key=lambda item:
-                                  (-len(item[0].split('/')), item[0])))
+    sorted_statuses = dict(
+        sorted(
+            path_to_status.items(), key=lambda item: (-len(item[0].split("/")), item[0])
+        )
+    )
     root_nodes = []
     folder_nodes = {}
 
     for path, status in sorted_statuses.items():
-        if '/' not in path:
+        if "/" not in path:
             root_nodes.append(Node(path, status=path_to_status[path]))
             continue
 
-        parts = path.split('/')
+        parts = path.split("/")
         for i, part in enumerate(parts[:-1]):
-            pre = '/'.join(parts[:i + 1])
+            pre = "/".join(parts[: i + 1])
 
             if pre in folder_nodes:
                 curr = folder_nodes[pre]
@@ -120,20 +127,31 @@ def cli():
             if node.status is None:
                 print(f"{pre}{node.name}/")
             else:
-                renamed = f"{path_from_old_path[node.name]} -> " if node.name in path_from_old_path else ""
+                renamed = (
+                    f"{path_from_old_path[node.name]} -> "
+                    if node.name in path_from_old_path
+                    else ""
+                )
                 x, y = node.status
 
-                if x in '?!' or node.status in ['DD', 'AU', 'UD', 'UA', 'DU',
-                                                'AA', 'UU']:
-                    x = f'{Fore.RED}{x}'
-                    y = f'{y}{Style.RESET_ALL}'
+                if x in "?!" or node.status in [
+                    "DD",
+                    "AU",
+                    "UD",
+                    "UA",
+                    "DU",
+                    "AA",
+                    "UU",
+                ]:
+                    x = f"{Fore.RED}{x}"
+                    y = f"{y}{Style.RESET_ALL}"
 
                 else:
-                    if x != '.':
-                        x = f'{Fore.GREEN}{x}'
-                    if y != '.':
-                        y = f'{Fore.RED}{y}'
+                    if x != ".":
+                        x = f"{Fore.GREEN}{x}"
+                    if y != ".":
+                        y = f"{Fore.RED}{y}"
                     else:
-                        y = f'{Style.RESET_ALL}{y}'
+                        y = f"{Style.RESET_ALL}{y}"
 
                 print(f"{pre}{x}{y}{Style.RESET_ALL} {renamed}{node.name}")
